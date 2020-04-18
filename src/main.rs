@@ -8,7 +8,7 @@
 
 use nannou::prelude::*;
 use nannou::draw::Draw;
-//use nannou::app::LoopMode;
+use nannou::app::LoopMode;
 
 mod r201;
 use r201::R201;
@@ -115,9 +115,8 @@ fn main() {
     let ly = -o.e2;
     */
 
-    nannou::app(model)
+    let app = nannou::app(model)
         //.update(update)
-        //.set_loop_mode(LoopMode::refresh_sync())
         //.event(event)
         .simple_window(view)
         .run();
@@ -145,6 +144,8 @@ fn draw_axis(draw: &Draw) {
 }
 
 fn view(app: &App, _model: &Model, frame: Frame) {
+    app.set_loop_mode(LoopMode::loop_once());
+
     let a = point(-3., 0.);
     let b = point( 3., 2.);
     let c = (&a + &b).normalized();
