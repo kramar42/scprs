@@ -1,0 +1,15 @@
+[package]
+name = "scprs"
+version = "0.1.0"
+authors = ["kramar"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+#audrey = "0.2"
+#conrod_core = "0.69"
+#futures = "0.3"
+#hotglsl = { git = "https://github.com/nannou-org/hotglsl", branch = "master" }
+nannou = "0.13.1"
+#{ version = "0.13.1", path = "../nannou/nannou" }
