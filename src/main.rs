@@ -11,9 +11,9 @@ use nannou::app::LoopMode;
 mod r201;
 use r201::R201;
 
-const POINT_SIZE: f32 = 1.;
+const POINT_SIZE: f32 = 2.;
 const TRIANGLE_SIZE: f64 = 250.;
-const MIN_SIZE: f64 = 0.7;
+const MIN_SIZE: f64 = 3.; //0.7;
 
 fn point(x: f64, y: f64) -> R201 {
     R201::e12() - x * R201::e02() + y * R201::e01()
@@ -124,27 +124,45 @@ fn draw_axis(draw: &Draw) {
         .color(BLACK);
 }
 
-fn triangle(draw: &Draw, x: &R201, y: f64) {
-    if y < MIN_SIZE {
-        draw_p(draw, &x, "1");
+fn rotator(o: &R201, a: f64) -> R201 {
+    a.cos() + a.sin() as f64 * o
+}
+
+fn angle(x: &R201) -> f64 {
+    let xi = ipoint(1., 0.);
+    let o = point(0., 0.);
+    ((&o & x).normalized() ^ &xi)[7].asin()
+}
+
+fn triangle(draw: &Draw, x: &R201, y: &R201) {
+    let d = (x&y).norm();
+    //println!("d: {}", d);
+    if d < MIN_SIZE {
+        let alpha = angle(&y);
+        //println!("alpha: {}", alpha);
+        let beta = angle(&x);
+        //println!("beta: {}", beta);
+        let h = (alpha + beta) / (2. * PI) as f64;
+        //println!("hue: {}", h);
+        draw_p(draw, &x, h, d);
         return;
     }
 
-    let angle = PI/3.;
-    let dy = angle.sin() as f64 * y * R201::e01();
-    let dx = -y * R201::e02();
-    let p1 = x + &dy;
-    let p2 = x - &dy * angle.cos() as f64 + &dx;
-    let p3 = x - &dy * angle.cos() as f64 - &dx;
-    //* sin(PI/3) - y * R201::e02();
-    triangle(draw, &p1, y / 2.);
-    triangle(draw, &p2, y / 2.);
-    triangle(draw, &p3, y / 2.);
+    let p1 = x + y;
+
+    let r = rotator(x, (PI/3.).into());
+    let p2 = &r * &p1 * &r.Reverse();
+    let p3 = &r * &p2 * &r.Reverse();
+
+    let y2 = y * 0.5;
+    triangle(draw, &p1, &y2);
+    triangle(draw, &p2, &y2);
+    triangle(draw, &p3, &y2);
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
-    app.set_loop_mode(LoopMode::loop_once());
-    //app.set_loop_mode(LoopMode::wait());
+    //app.set_loop_mode(LoopMode::loop_once());
+    app.set_loop_mode(LoopMode::wait());
     let draw = app.draw();
 
     draw.background().color(BLACK);
@@ -152,7 +170,10 @@ fn view(app: &App, model: &Model, frame: Frame) {
     //draw_axis(&draw);
 
     //draw_p(&draw, &model.x, "o");
-    triangle(&draw, &model.x, TRIANGLE_SIZE);
+    //let y = R201::e01() * TRIANGLE_SIZE;
+    //let y = (&model.a - &model.x) * 0.5;
+    let y = &model.a - &model.x;
+    triangle(&draw, &model.x, &y);
 
     //draw_l(&draw, &model.l);
     //draw_p(&draw, &model.a, "A");
@@ -176,11 +197,12 @@ fn event(_app: &App, model: &mut Model, event: Event) {
     update_model(model);
 }
 
-fn draw_p(draw: &Draw, p: &R201, t: &str) {
+fn draw_p(draw: &Draw, p: &R201, h: f64, r: f64) {
     let (x, y) = p.to_xy();
     draw.ellipse()
-        .radius(POINT_SIZE)
-        .color(RED)
+        .radius(r as f32)
+        .resolution((50. / r) as usize)
+        .hsl(h as f32, 1., 0.5)
         .x_y(x as f32, y as f32);
     //draw.text(t)
         //.color(BLACK)
