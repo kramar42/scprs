@@ -13,7 +13,8 @@ use r201::R201;
 
 const POINT_SIZE: f32 = 2.;
 const TRIANGLE_SIZE: f64 = 250.;
-const MIN_SIZE: f64 = 3.; //0.7;
+const MIN_SIZE: f64 = 10.; //0.7;
+const MOUSE_SCALE: f64 = 100.;
 
 fn point(x: f64, y: f64) -> R201 {
     R201::e12() - x * R201::e02() + y * R201::e01()
@@ -88,6 +89,7 @@ struct Model {
     o: R201,
     m: R201,
     l: R201,
+    s: f64,
 }
 
 fn model(_app: &App) -> Model {
@@ -99,6 +101,7 @@ fn model(_app: &App) -> Model {
         o: point(0., 0.),
         l: R201::zero(),
         m: R201::zero(),
+        s: 0.
     };
     update_model(&mut res);
     res
@@ -134,7 +137,11 @@ fn angle(x: &R201) -> f64 {
     ((&o & x).normalized() ^ &xi)[7].asin()
 }
 
-fn triangle(draw: &Draw, x: &R201, y: &R201) {
+fn mot(m: &R201, x: &R201) -> R201 {
+    m * x * m.Reverse()
+}
+
+fn triangle(draw: &Draw, x: &R201, y: &R201, s: f64) {
     let d = (x&y).norm();
     //println!("d: {}", d);
     if d < MIN_SIZE {
@@ -142,22 +149,32 @@ fn triangle(draw: &Draw, x: &R201, y: &R201) {
         //println!("alpha: {}", alpha);
         let beta = angle(&x);
         //println!("beta: {}", beta);
-        let h = (alpha + beta) / (2. * PI) as f64;
+        let h = (alpha / 10. + beta) / (PI) as f64;
         //println!("hue: {}", h);
         draw_p(draw, &x, h, d);
         return;
     }
-
-    let p1 = x + y;
-
+    //let o = point(0., 0.);
+    let dx = rotator(&x, d * s / 3000.);
+    //let dx2 = rotator(&o, s / 2000.);
     let r = rotator(x, (PI/3.).into());
-    let p2 = &r * &p1 * &r.Reverse();
-    let p3 = &r * &p2 * &r.Reverse();
 
-    let y2 = y * 0.5;
-    triangle(draw, &p1, &y2);
-    triangle(draw, &p2, &y2);
-    triangle(draw, &p3, &y2);
+    let p1 = mot(&dx, &(x + y));
+    let p2 = mot(&r, &p1);
+    let p3 = mot(&r, &p2);
+
+    //let p1 = mot(&dx, &p1);
+    //let p2 = mot(&dx2, &p2);
+    //let p3 = mot(&dx2, &p3);
+    let yh = y * 0.5;
+    let y2 = mot(&r, &yh);
+    let y3 = mot(&r, &y2);
+    let s2 = s * 0.5;
+    //let p1 = &dx * (x + y) * &dx.Reverse();
+    //triangle(draw, &(&dx * &p1 * &dx.Reverse()), &y2, s2);
+    triangle(draw, &p1, &yh, s2);
+    triangle(draw, &p2, &yh, s2);
+    triangle(draw, &p3, &yh, s2);
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -173,7 +190,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
     //let y = R201::e01() * TRIANGLE_SIZE;
     //let y = (&model.a - &model.x) * 0.5;
     let y = &model.a - &model.x;
-    triangle(&draw, &model.x, &y);
+    triangle(&draw, &model.x, &y, model.s / MOUSE_SCALE);
 
     //draw_l(&draw, &model.l);
     //draw_p(&draw, &model.a, "A");
@@ -190,7 +207,26 @@ fn event(_app: &App, model: &mut Model, event: Event) {
             MouseMoved(coords) => {
                 model.a = point(coords.x.into(), coords.y.into());
             }
-            _other => (),
+            MouseWheel(delta, _) => {
+                match delta {
+                    MouseScrollDelta::LineDelta(_h, v) => {
+                        model.s += v as f64;
+                        println!("s: {}", model.s);
+                    }
+                    MouseScrollDelta::PixelDelta(p) => {
+                        model.s += p.y as f64;
+                        //if model.s > MOUSE_MAX {
+                            //model.s = MOUSE_MAX;
+                        //}
+                        if model.s < 0. {
+                            model.s = 0.;
+                        }
+                        //println!("s: {}", model.s);
+                    }
+                    _ => ()
+                }
+            }
+            _ => (),
         },
         _ => (),
     }
