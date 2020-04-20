@@ -11,9 +11,9 @@ use nannou::app::LoopMode;
 mod r201;
 use r201::R201;
 
-const POINT_SIZE: f32 = 2.;
-const TRIANGLE_SIZE: f64 = 250.;
-const MIN_SIZE: f64 = 10.; //0.7;
+//const POINT_SIZE: f32 = 2.;
+//const TRIANGLE_SIZE: f64 = 250.;
+const MIN_SIZE: f64 = 3.; //0.7;
 const MOUSE_SCALE: f64 = 100.;
 
 fn point(x: f64, y: f64) -> R201 {
@@ -93,11 +93,9 @@ struct Model {
 }
 
 fn model(_app: &App) -> Model {
-    let o = point(0., 0.);
-    let x = point(0., -100.);
     let mut res = Model {
-        x: x,
-        a: o,
+        x: point(0., 0.),
+        a: point(0., 0.),
         o: point(0., 0.),
         l: R201::zero(),
         m: R201::zero(),
@@ -115,7 +113,7 @@ fn update_model(model: &mut Model) {
 fn _update(_app: &App, _model: &mut Model, _update: Update) {
 }
 
-fn draw_axis(draw: &Draw) {
+fn _draw_axis(draw: &Draw) {
     // improve: draw in geom terms
     draw.rect()
         .w(2000.)
@@ -141,7 +139,7 @@ fn mot(m: &R201, x: &R201) -> R201 {
     m * x * m.Reverse()
 }
 
-fn triangle(draw: &Draw, x: &R201, y: &R201, s: f64) {
+fn triangle(draw: &Draw, model:&Model, x: &R201, y: &R201, s: f64) {
     let d = (x&y).norm();
     //println!("d: {}", d);
     if d < MIN_SIZE {
@@ -151,15 +149,21 @@ fn triangle(draw: &Draw, x: &R201, y: &R201, s: f64) {
         //println!("beta: {}", beta);
         let h = (alpha / 10. + beta) / (PI) as f64;
         //println!("hue: {}", h);
-        draw_p(draw, &x, h, d);
+        //let o = point(0., 0.);
+        //let o = point(0., -100.);
+        let f = (x & &model.o).norm();
+        let dx = rotator(&model.o, f * s / 100.);
+        let y = (&model.a & &model.o).norm() / 200.;
+        //println!("y: {}", y);
+        let mx = mot(&dx, &x) * (1. / y);
+        draw_p(draw, &mx, h, 3. / y);
         return;
     }
     //let o = point(0., 0.);
-    let dx = rotator(&x, d * s / 3000.);
     //let dx2 = rotator(&o, s / 2000.);
     let r = rotator(x, (PI/3.).into());
 
-    let p1 = mot(&dx, &(x + y));
+    let p1 = x + y;
     let p2 = mot(&r, &p1);
     let p3 = mot(&r, &p2);
 
@@ -167,14 +171,14 @@ fn triangle(draw: &Draw, x: &R201, y: &R201, s: f64) {
     //let p2 = mot(&dx2, &p2);
     //let p3 = mot(&dx2, &p3);
     let yh = y * 0.5;
-    let y2 = mot(&r, &yh);
-    let y3 = mot(&r, &y2);
+    //let y2 = mot(&r, &yh);
+    //let y3 = mot(&r, &y2);
     let s2 = s * 0.5;
     //let p1 = &dx * (x + y) * &dx.Reverse();
     //triangle(draw, &(&dx * &p1 * &dx.Reverse()), &y2, s2);
-    triangle(draw, &p1, &yh, s2);
-    triangle(draw, &p2, &yh, s2);
-    triangle(draw, &p3, &yh, s2);
+    triangle(draw, model, &p1, &yh, s2);
+    triangle(draw, model, &p2, &yh, s2);
+    triangle(draw, model, &p3, &yh, s2);
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -183,14 +187,14 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
 
     draw.background().color(BLACK);
-        //Rgba::new(0.7, 0.7, 0.7, 0.7));
+    //Rgba::new(0.7, 0.7, 0.7, 0.7));
     //draw_axis(&draw);
 
     //draw_p(&draw, &model.x, "o");
     //let y = R201::e01() * TRIANGLE_SIZE;
     //let y = (&model.a - &model.x) * 0.5;
     let y = &model.a - &model.x;
-    triangle(&draw, &model.x, &y, model.s / MOUSE_SCALE);
+    triangle(&draw, model, &model.x, &y, model.s / MOUSE_SCALE);
 
     //draw_l(&draw, &model.l);
     //draw_p(&draw, &model.a, "A");
@@ -211,7 +215,7 @@ fn event(_app: &App, model: &mut Model, event: Event) {
                 match delta {
                     MouseScrollDelta::LineDelta(_h, v) => {
                         model.s += v as f64;
-                        println!("s: {}", model.s);
+                        //println!("s: {}", model.s);
                     }
                     MouseScrollDelta::PixelDelta(p) => {
                         model.s += p.y as f64;
@@ -223,7 +227,6 @@ fn event(_app: &App, model: &mut Model, event: Event) {
                         }
                         //println!("s: {}", model.s);
                     }
-                    _ => ()
                 }
             }
             _ => (),
@@ -237,7 +240,8 @@ fn draw_p(draw: &Draw, p: &R201, h: f64, r: f64) {
     let (x, y) = p.to_xy();
     draw.ellipse()
         .radius(r as f32)
-        .resolution((50. / r) as usize)
+        //.resolution((40. / r) as usize)
+        .resolution(7)
         .hsl(h as f32, 1., 0.5)
         .x_y(x as f32, y as f32);
     //draw.text(t)
@@ -246,7 +250,7 @@ fn draw_p(draw: &Draw, p: &R201, h: f64, r: f64) {
         //.left(5.);
 }
 
-fn draw_l(draw: &Draw, l: &R201) {
+fn _draw_l(draw: &Draw, l: &R201) {
     let xi = ipoint(1., 0.);
     let alpha = (l.normalized() ^ xi)[7].asin();
     //println!("alpha: {}", alpha);
