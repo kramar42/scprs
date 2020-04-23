@@ -84,8 +84,10 @@ fn main() {
 }
 
 struct Model {
-    x: R201,
     a: R201,
+    b: R201,
+    c: R201,
+    x: R201,
     o: R201,
     m: R201,
     l: R201,
@@ -93,10 +95,21 @@ struct Model {
 }
 
 fn model(_app: &App) -> Model {
+    // our center
+    let o = point(0., -120.);
+    // clockwise rotation
+    let r = rotator(&o, (PI/3.).into());
+    let x = R201::zero();
+    // top point
+    let a = point(0., 380.);
+    let b = mot(&r, &a);
+    let c = mot(&r, &b);
     let mut res = Model {
-        x: point(0., 0.),
-        a: point(0., 0.),
-        o: point(0., 0.),
+        a: a,
+        b: b,
+        c: c,
+        o: o,
+        x: x,
         l: R201::zero(),
         m: R201::zero(),
         s: 0.
@@ -106,11 +119,11 @@ fn model(_app: &App) -> Model {
 }
 
 fn update_model(model: &mut Model) {
-    model.m = (&model.o + &model.a).normalized();
-    model.l = &model.o & &model.a;
+    //model.m = (&model.o + &model.a).normalized();
+    //model.l = &model.o & &model.a;
 }
 
-fn _update(_app: &App, _model: &mut Model, _update: Update) {
+fn update(_app: &App, _model: &mut Model, _update: Update) {
 }
 
 fn _draw_axis(draw: &Draw) {
@@ -141,22 +154,23 @@ fn mot(m: &R201, x: &R201) -> R201 {
 
 fn triangle(draw: &Draw, model:&Model, x: &R201, y: &R201, s: f64) {
     let d = (x&y).norm();
-    //println!("d: {}", d);
+    println!("d: {}", d);
+
     if d < MIN_SIZE {
         let alpha = angle(&y);
-        //println!("alpha: {}", alpha);
+        println!("alpha: {}", alpha);
         let beta = angle(&x);
-        //println!("beta: {}", beta);
-        let h = (alpha / 10. + beta) / (PI) as f64;
-        //println!("hue: {}", h);
+        println!("beta: {}", beta);
+        let h = (alpha + beta) as f64;
+        println!("hue: {}", h);
         //let o = point(0., 0.);
         //let o = point(0., -100.);
-        let f = (x & &model.o).norm();
-        let dx = rotator(&model.o, f * s / 100.);
-        let y = (&model.a & &model.o).norm() / 200.;
+        //let f = (x & &model.o).norm();
+        //let dx = rotator(&model.o, f * s / 100.);
+        let y = 30. / (&model.a & &model.o).norm();
         //println!("y: {}", y);
-        let mx = mot(&dx, &x) * (1. / y);
-        draw_p(draw, &mx, h, 3. / y);
+        //let mx = mot(&dx, &x) * (1. / y);
+        draw_p(draw, &x, h, 1.);
         return;
     }
     //let o = point(0., 0.);
@@ -176,14 +190,34 @@ fn triangle(draw: &Draw, model:&Model, x: &R201, y: &R201, s: f64) {
     let s2 = s * 0.5;
     //let p1 = &dx * (x + y) * &dx.Reverse();
     //triangle(draw, &(&dx * &p1 * &dx.Reverse()), &y2, s2);
+
     triangle(draw, model, &p1, &yh, s2);
     triangle(draw, model, &p2, &yh, s2);
     triangle(draw, model, &p3, &yh, s2);
 }
 
+fn run_triangle(draw: &Draw, m: &Model, x: &R201, t: f64,
+                f1: &impl Fn(&R201) -> R201,
+                f2: &impl Fn(&R201) -> R201,
+                f3: &impl Fn(&R201) -> R201) {
+    //let y = &m.a - &m.x;
+    let p1 = f1(&x);
+    let d = (x & &p1).norm();
+    draw_p(draw, x, d, 2.);
+    if t < MIN_SIZE {
+        //draw_p(draw, x, d, 2.);
+        return;
+    }
+    let dt = t / 3.;
+    run_triangle(draw, m,    &p1, dt, f1, f2, f3);
+    run_triangle(draw, m, &f2(x), dt, f1, f2, f3);
+    run_triangle(draw, m, &f3(x), dt, f1, f2, f3);
+}
+
 fn view(app: &App, model: &Model, frame: Frame) {
     //app.set_loop_mode(LoopMode::loop_once());
-    app.set_loop_mode(LoopMode::wait());
+    //app.set_loop_mode(LoopMode::wait());
+    app.set_loop_mode(LoopMode::refresh_sync());
     let draw = app.draw();
 
     draw.background().color(BLACK);
@@ -193,8 +227,14 @@ fn view(app: &App, model: &Model, frame: Frame) {
     //draw_p(&draw, &model.x, "o");
     //let y = R201::e01() * TRIANGLE_SIZE;
     //let y = (&model.a - &model.x) * 0.5;
-    let y = &model.a - &model.x;
-    triangle(&draw, model, &model.x, &y, model.s / MOUSE_SCALE);
+    let t = app.time.powf(3.);
+    run_triangle(&draw, model, &model.m, t as f64,
+                 &|x: &R201| (x + &model.a).normalized(),
+                 &|x: &R201| (x + &model.b).normalized(),
+                 &|x: &R201| (x + &model.c).normalized());
+    //println!("x: {}", model.m);
+
+    //triangle(&draw, model, &model.x, &y, model.s / MOUSE_SCALE);
 
     //draw_l(&draw, &model.l);
     //draw_p(&draw, &model.a, "A");
@@ -209,7 +249,8 @@ fn event(_app: &App, model: &mut Model, event: Event) {
     match event {
         Event::WindowEvent { simple: Some(event), .. } => match event {
             MouseMoved(coords) => {
-                model.a = point(coords.x.into(), coords.y.into());
+                model.m = point(coords.x.into(), coords.y.into());
+                //println!("m: {}", model.m);
             }
             MouseWheel(delta, _) => {
                 match delta {
@@ -238,11 +279,12 @@ fn event(_app: &App, model: &mut Model, event: Event) {
 
 fn draw_p(draw: &Draw, p: &R201, h: f64, r: f64) {
     let (x, y) = p.to_xy();
+    //println!("r: {}", r);
     draw.ellipse()
         .radius(r as f32)
         //.resolution((40. / r) as usize)
-        .resolution(7)
-        .hsl(h as f32, 1., 0.5)
+        .resolution(6)
+        .hsl(h as f32, 1., 1.)
         .x_y(x as f32, y as f32);
     //draw.text(t)
         //.color(BLACK)
