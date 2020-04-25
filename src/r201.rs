@@ -561,16 +561,4 @@ impl R201 {
     pub fn normalized(self: & Self) -> Self {
         self * (1.0 / self.norm())
     }
-    
-    
-
-}
-
-
-fn main() {
-
-  println!("e0*e0         : {}", R201::e0() * R201::e0());
-  println!("pss           : {}", R201::e012());
-  println!("pss*pss       : {}", R201::e012() * R201::e012());
-
 }
