@@ -9,8 +9,8 @@ use self::r201::R201;
 mod ga;
 mod draw;
 
-const MIN_SIZE: f64 = 3.;
-const MOUSE_SCALE: f64 = 100.;
+const MIN_SIZE   : f64 = 3.;
+const MOUSE_SCALE: f64 = 30.;
 const COLOR_SCALE: f64 = 100.;
 
 fn main() {
@@ -32,26 +32,19 @@ fn model(app: &App) -> Model {
         .view(view)
         .build()
         .unwrap();
-    // our center
-    let o = ga::point(0., -120.);
-    // top point
-    let a = ga::point(0., 380.);
 
-    let mut res = Model {
-        o: o,
-        a: a,
+    Model {
+        // center
+        o: ga::point(0., -120.),
+        // top point
+        a: ga::point(0., 380.),
         m: R201::zero(),
         s: 0.
-    };
-    update_model(&mut res);
-    res
+    }
 }
 
-/// update derived values
 fn update_model(m: &mut Model) {
-    if m.s < 0. {
-        m.s = 0.;
-    }
+    if m.s < 0. {  m.s = 0.; }
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -60,7 +53,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
     draw.background().color(BLACK);
 
-    let y = &model.a - &model.m;
+    let y = &model.m - &model.o;
     draw::triangle(&draw, model, &model.m, &y, model.s / MOUSE_SCALE);
     draw.to_frame(app, &frame).unwrap();
 }

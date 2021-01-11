@@ -8,7 +8,7 @@ use super::Model;
 use super::MIN_SIZE;
 
 pub fn axis(draw: &Draw) {
-    // improve: draw in geom terms
+    // TODO: improve: draw in geom terms
     draw.rect()
         .w(2000.)
         .h(1.3)
@@ -21,13 +21,11 @@ pub fn axis(draw: &Draw) {
 
 pub fn point(draw: &Draw, p: &R201, h: f64, r: f64) {
     let (x, y) = p.to_xy();
-    //println!("r: {}", r);
     draw.ellipse()
-        .radius(r as f32)
-        //.resolution((40. / r) as usize)
         .resolution(3)
+        .x_y(x as f32, y as f32)
         .hsla(h as f32, 1., 0.5, 0.5)
-        .x_y(x as f32, y as f32);
+        .radius(r as f32);
 }
 
 pub fn line(draw: &Draw, l: &R201) {
@@ -54,36 +52,37 @@ pub fn line(draw: &Draw, l: &R201) {
 }
 
 pub fn triangle(draw: &Draw, model: &Model, x: &R201, y: &R201, s: f64) {
-    let d = (x&y).norm();
+    // calc the size of the triangle
+    let d = x.distance(y);
 
-    // case of printing the dot
+    // if it's small enought - print the dot
     if d < MIN_SIZE {
-        let alpha = ga::angle(&y);
-        //println!("alpha: {}", alpha);
-        let beta = ga::angle(&x);
-        //println!("beta: {}", beta);
+        let hue = x.angle() / (PI) as f64;
 
-        let h = (alpha / 10. + beta) / (PI) as f64;
-        let f = (x & &model.o).norm();
-        let dx = ga::rotator(&model.o, f * s / 100.);
-        let y = (&model.a & &model.o).norm() / 200.;
-        //println!("y: {}", y);
-        let mx = ga::mot(&dx, &x) * (1. / y);
-        point(draw, &mx, h, 3. / y);
+        // how far we are from center
+        let f = x.distance(&model.o);
+        // make a spiral rotation out of scroll
+        let dx = model.o.rotator(f * s);
+        // division is not defined in r201
+        let mx = dx.rotate(x) * 0.5;
+
+        point(draw, &mx, hue, 3.);
         return;
     }
 
-    // case of recurring
-    let r = ga::rotator(x, (PI/3.).into());
+    // else recur to 3 triangles
+    let r = x.rotator((PI/3.).into());
 
+    // x is center of new triangles, y defines far vertex
     let p1 = x + y;
-    let p2 = ga::mot(&r, &p1);
-    let p3 = ga::mot(&r, &p2);
+    let p2 = r.rotate(&p1);
+    let p3 = r.rotate(&p2);
 
-    let yh = y * 0.5;
+    // scale down by the factor of 2
+    let y2 = y * 0.5;
     let s2 = s * 0.5;
 
-    triangle(draw, model, &p1, &yh, s2);
-    triangle(draw, model, &p2, &yh, s2);
-    triangle(draw, model, &p3, &yh, s2);
+    triangle(draw, model, &p1, &y2, s2);
+    triangle(draw, model, &p2, &y2, s2);
+    triangle(draw, model, &p3, &y2, s2);
 }
