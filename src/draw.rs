@@ -4,6 +4,9 @@ use nannou::draw::Draw;
 use super::r201::R201;
 use super::ga;
 
+use super::Model;
+use super::MIN_SIZE;
+
 pub fn axis(draw: &Draw) {
     // improve: draw in geom terms
     draw.rect()
@@ -25,10 +28,6 @@ pub fn point(draw: &Draw, p: &R201, h: f64, r: f64) {
         .resolution(3)
         .hsla(h as f32, 1., 0.5, 0.5)
         .x_y(x as f32, y as f32);
-    //draw.text(t)
-        //.color(BLACK)
-        //.up(5.)
-        //.left(5.);
 }
 
 pub fn line(draw: &Draw, l: &R201) {
@@ -54,3 +53,37 @@ pub fn line(draw: &Draw, l: &R201) {
         .rotate((alpha * sign) as f32);
 }
 
+pub fn triangle(draw: &Draw, model: &Model, x: &R201, y: &R201, s: f64) {
+    let d = (x&y).norm();
+
+    // case of printing the dot
+    if d < MIN_SIZE {
+        let alpha = ga::angle(&y);
+        //println!("alpha: {}", alpha);
+        let beta = ga::angle(&x);
+        //println!("beta: {}", beta);
+
+        let h = (alpha / 10. + beta) / (PI) as f64;
+        let f = (x & &model.o).norm();
+        let dx = ga::rotator(&model.o, f * s / 100.);
+        let y = (&model.a & &model.o).norm() / 200.;
+        //println!("y: {}", y);
+        let mx = ga::mot(&dx, &x) * (1. / y);
+        point(draw, &mx, h, 3. / y);
+        return;
+    }
+
+    // case of recurring
+    let r = ga::rotator(x, (PI/3.).into());
+
+    let p1 = x + y;
+    let p2 = ga::mot(&r, &p1);
+    let p3 = ga::mot(&r, &p2);
+
+    let yh = y * 0.5;
+    let s2 = s * 0.5;
+
+    triangle(draw, model, &p1, &yh, s2);
+    triangle(draw, model, &p2, &yh, s2);
+    triangle(draw, model, &p3, &yh, s2);
+}
